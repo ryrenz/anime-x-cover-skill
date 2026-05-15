@@ -8,7 +8,7 @@
 You: /anime-cover-prompt path/to/article.md
 Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
        → decisions JSON + 英文 gpt-image-2 prompt
-       → (Codex) 封面图自动写到文章同目录
+       → (Codex) 封面图自动写到 ~/Downloads/
 ```
 
 ## 它做什么
@@ -16,7 +16,7 @@ Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
 - 读文章 → 选风格(EVA / P5 / Akira,或 `auto` 按文章情绪路由) → 写一段为 `gpt-image-2` 调校过的英文 image prompt。
 - 最终图里的标题文字**100% 等于原文标题**,不改写,不翻译。
 - 强制把四个角字段 —— `handle` / `vol` / `no` / `date` —— 放进构图。
-- 在 Codex 这种带 image generation 工具的宿主里,直接出图并复制一份到文章同目录,文件名 `<article>-cover.png`。
+- 在 Codex 这种带 image generation 工具的宿主里,直接出图并复制一份到 `~/Downloads/<article>-cover.png`。
 - 在 Claude Code / 没有 image 工具的宿主里,输出一段可直接粘到 ChatGPT 的 prompt。
 
 **不是通用 image prompt 生成器** —— 这是一个非常窄、非常有偏见的封面生成器:三种风格,固定的默认比例(X 用 5:2),固定的字段摆放规则。
@@ -75,7 +75,7 @@ skill 通过 `SKILL.md` 里 `name:` 字段自动注册成 `/anime-cover-prompt` 
 
 两种模式,取决于宿主能力:
 
-1. **Codex + image generation 工具** —— 直接出图,再复制到 `<article-dir>/<article-basename>-cover.png`。只有文件真实落盘才算完成。
+1. **Codex + image generation 工具** —— 直接出图,再复制到 `~/Downloads/<article-basename>-cover.png`。只有文件真实落盘才算完成。
 2. **Claude Code / 没有 image 工具** —— 输出 decisions JSON + 一段可粘到 ChatGPT (gpt-image-2) 的英文 prompt。
 
 ## 贡献

@@ -8,7 +8,7 @@ A [Claude Code](https://docs.claude.com/en/docs/claude-code) skill (also works i
 You: /anime-cover-prompt path/to/article.md
 Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
        → decisions JSON + English gpt-image-2 prompt
-       → (Codex) cover image written next to the article
+       → (Codex) cover image written to ~/Downloads/
 ```
 
 ## What it does
@@ -16,7 +16,7 @@ Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
 - Reads an article → picks a style (EVA / P5 / Akira, or `auto` based on mood) → writes an English image prompt tuned for `gpt-image-2`.
 - Title text in the final image is **100% identical** to the original article title (no paraphrasing, no translation).
 - Forces the four angular fields — `handle` / `vol` / `no` / `date` — to appear in the composition.
-- On Codex with a built-in image-generation tool, it generates the image directly and copies it next to the article as `<article>-cover.png`.
+- On Codex with a built-in image-generation tool, it generates the image directly and copies it to `~/Downloads/<article>-cover.png`.
 - On Claude Code / hosts without image tools, it emits the prompt for you to paste into ChatGPT.
 
 **Not a general image-prompt generator** — this is a narrow, opinionated cover generator for anime-flavored article covers. Three styles, fixed aspect-ratio defaults (5:2 for X), fixed field layout.
@@ -75,7 +75,7 @@ Per-article fields (`vol`, `no`, `date`) are **never** carried across articles �
 
 Two modes depending on host capability:
 
-1. **Codex with image generation** — generates the image, then copies it to `<article-dir>/<article-basename>-cover.png`. Completion requires the file to actually exist on disk.
+1. **Codex with image generation** — generates the image, then copies it to `~/Downloads/<article-basename>-cover.png`. Completion requires the file to actually exist on disk.
 2. **Claude Code / no image tool** — emits a decisions JSON + a paste-ready English prompt for ChatGPT (gpt-image-2).
 
 ## Contributing

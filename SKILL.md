@@ -34,29 +34,31 @@ version: 0.3.6
 
 ## Image Output Policy
 
-当用户提供的是本地文章路径且本轮生成了图片,**最终交付物必须出现在文章同目录**。
+当本轮直接生成了图片时,**最终交付物必须落到 `~/Downloads/`**。
 
 默认目标路径:
 
 ```text
-<article-dir>/<article-basename>-cover.png
+~/Downloads/<article-basename>-cover.png
 ```
 
 例如:
 
 ```text
 ~/articles/文章标题.md
-→ ~/articles/文章标题-cover.png
+→ ~/Downloads/文章标题-cover.png
 ```
+
+如果用户没有提供本地文章路径(直接粘贴文章正文),用文章标题做 slug 当 basename;实在拿不到就用时间戳 `cover-YYYYMMDD-HHMM.png`。
 
 平台规则:
 
-- **Codex**:如果使用内置 `image_gen` 工具,它会先把图片保存到 Codex 默认生成目录。生成后必须定位最新生成的图片,保留默认原图,再复制一份到文章同目录。不要把“默认生成目录里有图”当成完成。
-- **Claude Code / 其他环境**:如果图片工具支持指定输出路径,优先直接写到文章同目录;如果只能写默认目录,同样保留默认原图并复制到文章同目录。
-- 如果写入文章同目录需要权限批准,必须请求批准并完成复制;只有用户拒绝权限时,才报告“已生成但无法复制到同目录”。
-- 用户明确要求“只要 prompt / 不要出图”时,才跳过图片生成和同目录复制。
+- **Codex**:如果使用内置 `image_gen` 工具,它会先把图片保存到 Codex 默认生成目录。生成后必须定位最新生成的图片,保留默认原图,再复制一份到 `~/Downloads/`。不要把“默认生成目录里有图”当成完成。
+- **Claude Code / 其他环境**:如果图片工具支持指定输出路径,优先直接写到 `~/Downloads/`;如果只能写默认目录,同样保留默认原图并复制到 `~/Downloads/`。
+- 如果写入 `~/Downloads/` 需要权限批准,必须请求批准并完成复制;只有用户拒绝权限时,才报告“已生成但无法复制到 ~/Downloads”。
+- 用户明确要求“只要 prompt / 不要出图”时,才跳过图片生成与复制。
 
-完成判定:本地文章路径存在时,没有同目录 `*-cover.png` 文件,本 skill 就没有完成。
+完成判定:本轮承诺出图时,`~/Downloads/<basename>-cover.png` 不存在,本 skill 就没有完成。
 
 ## Required Angular Fields
 
@@ -109,7 +111,7 @@ version: 0.3.6
 9. 判断运行环境与可用能力:
    - **Codex + 可用 image generation 工具**:直接调用 image generation 工具出图,不要把 prompt 当最终结果交给用户再手动跑一遍。调用前可短暂说明正在直接生成图片;调用后遵守宿主工具规则,不要再输出 prompt、解释或追问。
    - **无 image generation 工具 / 用户明确要求只要 prompt**:输出 decisions JSON + 英文 image prompt。
-10. 如果直接出图且输入是本地文章路径,按 Image Output Policy 复制到文章同目录。完成前必须验证目标 `*-cover.png` 存在。
+10. 如果直接出图,按 Image Output Policy 复制到 `~/Downloads/`。完成前必须验证目标 `*-cover.png` 存在。
 
 ---
 
