@@ -1,4 +1,4 @@
-# anime-x-cover.skill
+# anime-x-cover-skill
 
 [中文](README.md) | **English**
 
@@ -37,10 +37,10 @@ This is a Claude Code / Codex skill. Clone it into your skills directory:
 
 ```bash
 # Claude Code
-git clone https://github.com/<your-org>/anime-x-cover.skill ~/.claude/skills/anime-cover-prompt
+git clone https://github.com/ryrenz/anime-x-cover-skill ~/.claude/skills/anime-cover-prompt
 
 # or symlink from anywhere
-ln -s "$(pwd)/anime-x-cover.skill" ~/.claude/skills/anime-cover-prompt
+ln -s "$(pwd)/anime-x-cover-skill" ~/.claude/skills/anime-cover-prompt
 ```
 
 The skill registers itself as `/anime-cover-prompt` via the `name:` frontmatter in `SKILL.md`.

@@ -1,4 +1,4 @@
-# anime-x-cover.skill
+# anime-x-cover-skill
 
 **中文** | [English](README.en.md)
 
@@ -37,10 +37,10 @@ Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
 
 ```bash
 # Claude Code
-git clone https://github.com/ryrenz/anime-x-cover.skill ~/.claude/skills/anime-cover-prompt
+git clone https://github.com/ryrenz/anime-x-cover-skill ~/.claude/skills/anime-cover-prompt
 
 # 或者从任意位置软链
-ln -s "$(pwd)/anime-x-cover.skill" ~/.claude/skills/anime-cover-prompt
+ln -s "$(pwd)/anime-x-cover-skill" ~/.claude/skills/anime-cover-prompt
 ```
 
 skill 通过 `SKILL.md` 里 `name:` 字段自动注册成 `/anime-cover-prompt` 命令。
