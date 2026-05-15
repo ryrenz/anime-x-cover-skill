@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Local test outputs
+/test-output/
+/tmp/
+*.png
+*.jpg
+*.jpeg
+!references/**/*.png
+!references/**/*.jpg
+
+# User memory / private notes
+/memory/
+/.claude/projects/
