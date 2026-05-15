@@ -1,87 +1,89 @@
 # anime-x-cover.skill
 
-A [Claude Code](https://docs.claude.com/en/docs/claude-code) skill (also works in Codex) that turns an article into a paste-and-go cover-image prompt — or directly generates the cover — in **EVA / Persona 5 / Akira** aesthetics. Designed for X/Twitter covers and Chinese long-form publishing.
+**中文** | [English](README.en.md)
+
+[Claude Code](https://docs.claude.com/en/docs/claude-code) / Codex skill,把一篇文章变成可直接粘进 ChatGPT (gpt-image-2) 的封面 prompt —— 或者在支持的宿主里直接出图 —— 风格统一锁定在 **EVA / Persona 5 / Akira** 三家。专为 X/Twitter 封面与中文长图文设计。
 
 ```
 You: /anime-cover-prompt path/to/article.md
 Skill: 📌 fields: @yourhandle / Claude Code Vol.3 / 2026.05.09
-       → decisions JSON + English gpt-image-2 prompt
-       → (Codex) cover image written next to the article
+       → decisions JSON + 英文 gpt-image-2 prompt
+       → (Codex) 封面图自动写到文章同目录
 ```
 
-## What it does
+## 它做什么
 
-- Reads an article → picks a style (EVA / P5 / Akira, or `auto` based on mood) → writes an English image prompt tuned for `gpt-image-2`.
-- Title text in the final image is **100% identical** to the original article title (no paraphrasing, no translation).
-- Forces the four angular fields — `handle` / `vol` / `no` / `date` — to appear in the composition.
-- On Codex with a built-in image-generation tool, it generates the image directly and copies it next to the article as `<article>-cover.png`.
-- On Claude Code / hosts without image tools, it emits the prompt for you to paste into ChatGPT.
+- 读文章 → 选风格(EVA / P5 / Akira,或 `auto` 按文章情绪路由) → 写一段为 `gpt-image-2` 调校过的英文 image prompt。
+- 最终图里的标题文字**100% 等于原文标题**,不改写,不翻译。
+- 强制把四个角字段 —— `handle` / `vol` / `no` / `date` —— 放进构图。
+- 在 Codex 这种带 image generation 工具的宿主里,直接出图并复制一份到文章同目录,文件名 `<article>-cover.png`。
+- 在 Claude Code / 没有 image 工具的宿主里,输出一段可直接粘到 ChatGPT 的 prompt。
 
-**Not a general image-prompt generator** — this is a narrow, opinionated cover generator for anime-flavored article covers. Three styles, fixed aspect-ratio defaults (5:2 for X), fixed field layout.
+**不是通用 image prompt 生成器** —— 这是一个非常窄、非常有偏见的封面生成器:三种风格,固定的默认比例(X 用 5:2),固定的字段摆放规则。
 
-## Styles
+## 风格
 
-| Style | Vibe | Reference file |
+| Style | Vibe | Reference 文件 |
 |-------|------|----------------|
-| `eva` | Neon Genesis Evangelion — terminal HUD, NERV-style color palettes (red/orange/purple/green/blue modes) | `references/styles/eva.md` |
-| `p5` | Persona 5 — high-contrast red/black/white, halftone, slashing diagonals | `references/styles/p5.md` |
-| `akira` | Akira — neon-on-black, kanji accents, motion blur, urban-decay grit | `references/styles/akira.md` |
+| `eva` | 新世纪福音战士 —— terminal HUD,NERV 风格调色板(红/橙/紫/绿/蓝五个 mode) | `references/styles/eva.md` |
+| `p5` | 女神异闻录 5 —— 高对比红/黑/白,网点,斜切构图 | `references/styles/p5.md` |
+| `akira` | 阿基拉 —— 黑底霓虹,汉字点缀,运动模糊,都市颓废 | `references/styles/akira.md` |
 
-Each style file is loaded on demand — only the chosen style is read per invocation.
+风格文件**按需加载** —— 一次调用只读所选的那一份。
 
-## Install
+## 安装
 
-This is a Claude Code / Codex skill. Clone it into your skills directory:
+这是个 Claude Code / Codex skill,把仓库克隆到 skills 目录就能用:
 
 ```bash
 # Claude Code
-git clone https://github.com/<your-org>/anime-x-cover.skill ~/.claude/skills/anime-cover-prompt
+git clone https://github.com/ryrenz/anime-x-cover.skill ~/.claude/skills/anime-cover-prompt
 
-# or symlink from anywhere
+# 或者从任意位置软链
 ln -s "$(pwd)/anime-x-cover.skill" ~/.claude/skills/anime-cover-prompt
 ```
 
-The skill registers itself as `/anime-cover-prompt` via the `name:` frontmatter in `SKILL.md`.
+skill 通过 `SKILL.md` 里 `name:` 字段自动注册成 `/anime-cover-prompt` 命令。
 
-## Usage
+## 用法
 
 ```bash
 /anime-cover-prompt path/to/article.md
 /anime-cover-prompt path/to/article.md --style eva --aspect 5:2
 /anime-cover-prompt path/to/article.md --date 2026.05.03 --vol "Claude Code Vol.3"
-/anime-cover-prompt path/to/article.md --reset      # clear persisted config, re-prompt
-/anime-cover-prompt                                  # no path → paste the article inline
+/anime-cover-prompt path/to/article.md --reset      # 清空持久化 config,重新询问
+/anime-cover-prompt                                  # 不带路径 → 让你直接粘贴文章
 ```
 
-Flags:
+参数:
 
-- `--style` `eva` | `p5` | `akira` (default `auto`, routed by article mood)
-- `--aspect` `5:2` (X cover, default) | `2.35:1` (WeChat banner) | `3:2` | `4:5` | `1:1`
-- `--lang` `zh` (default) | `en` | `mix`
-- `--handle` / `--vol` / `--no` / `--date` — one-shot overrides for this call
+- `--style` `eva` | `p5` | `akira`(默认 `auto`,按文章 mood 路由)
+- `--aspect` `5:2`(X 封面,默认) | `2.35:1`(公众号横幅) | `3:2` | `4:5` | `1:1`
+- `--lang` `zh`(默认) | `en` | `mix`
+- `--handle` / `--vol` / `--no` / `--date` —— 本次调用的一次性覆盖
 
-## Config
+## 配置
 
-Persistent fields live in `~/.config/anime-cover-prompt/config.yaml`:
+持久化字段写在 `~/.config/anime-cover-prompt/config.yaml`:
 
-- `handle` — your @ handle, e.g. `@yourhandle`
-- `date_default` — `today` or a fixed date like `2026.05.09`
+- `handle` —— 你的 @ 账号,比如 `@yourhandle`
+- `date_default` —— `today` 或一个固定日期(如 `2026.05.09`)
 
-Per-article fields (`vol`, `no`, `date`) are **never** carried across articles — the skill asks each time or accepts CLI overrides.
+每篇文章独立字段(`vol`、`no`、`date`)**绝不跨文章沿用** —— 每次都重新问或由命令行传入。
 
-## Output
+## 输出
 
-Two modes depending on host capability:
+两种模式,取决于宿主能力:
 
-1. **Codex with image generation** — generates the image, then copies it to `<article-dir>/<article-basename>-cover.png`. Completion requires the file to actually exist on disk.
-2. **Claude Code / no image tool** — emits a decisions JSON + a paste-ready English prompt for ChatGPT (gpt-image-2).
+1. **Codex + image generation 工具** —— 直接出图,再复制到 `<article-dir>/<article-basename>-cover.png`。只有文件真实落盘才算完成。
+2. **Claude Code / 没有 image 工具** —— 输出 decisions JSON + 一段可粘到 ChatGPT (gpt-image-2) 的英文 prompt。
 
-## Contributing
+## 贡献
 
-The three style references are isolated — adding a fourth style is a single new file under `references/styles/` plus a routing entry in `SKILL.md`'s Style Routing section.
+三个风格 reference 互相隔离 —— 新增第四种风格只需要在 `references/styles/` 下加一个新文件,并在 `SKILL.md` 的 Style Routing 段加一条路由规则。
 
-PRs welcome.
+欢迎 PR。
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT —— 见 [LICENSE](LICENSE)。
