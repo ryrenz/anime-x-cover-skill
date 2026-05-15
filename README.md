@@ -73,10 +73,13 @@ skill 通过 `SKILL.md` 里 `name:` 字段自动注册成 `/anime-cover-prompt` 
 
 ## 输出
 
-两种模式,取决于宿主能力:
+三种模式,按宿主能力**从上到下选第一个能跑的**:
 
-1. **Codex + image generation 工具** —— 直接出图,再复制到 `~/Downloads/<article-basename>-cover.png`。只有文件真实落盘才算完成。
-2. **Claude Code / 没有 image 工具** —— 输出 decisions JSON + 一段可粘到 ChatGPT (gpt-image-2) 的英文 prompt。
+1. **宿主有内置 image generation 工具(Codex 等)** —— 直接出图,落盘到 `~/Downloads/<basename>-cover.png`。
+2. **Claude Code 等无 image 工具,但本机装了 [`codex` CLI](https://github.com/openai/codex)** —— 自动 shell 调 `codex exec` 转手出图,同样落盘到 `~/Downloads/`,用户无感知中间一步。
+3. **既无 image 工具,也没装 codex CLI(或用户明示只要 prompt)** —— 输出 decisions JSON + 一段可粘到 ChatGPT (gpt-image-2) 的英文 prompt。
+
+> 💡 想让 Claude Code 也能直接出图:`brew install codex`(或参考 codex CLI 安装文档),然后 `codex login` 跑一次,skill 会自动检测并启用模式 2。
 
 ## 贡献
 

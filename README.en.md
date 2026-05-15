@@ -73,10 +73,13 @@ Per-article fields (`vol`, `no`, `date`) are **never** carried across articles �
 
 ## Output
 
-Two modes depending on host capability:
+Three modes, picked top-down based on host capability:
 
-1. **Codex with image generation** — generates the image, then copies it to `~/Downloads/<article-basename>-cover.png`. Completion requires the file to actually exist on disk.
-2. **Claude Code / no image tool** — emits a decisions JSON + a paste-ready English prompt for ChatGPT (gpt-image-2).
+1. **Host has built-in image generation (Codex, etc.)** — generates the image directly, saves it to `~/Downloads/<basename>-cover.png`.
+2. **Claude Code or any host without image tools, but [`codex` CLI](https://github.com/openai/codex) installed locally** — auto-shells out to `codex exec` to delegate the generation; image lands in `~/Downloads/` the same way, no manual paste step.
+3. **Neither host image tool nor codex CLI (or user explicitly wants prompt only)** — emits a decisions JSON + a paste-ready English prompt for ChatGPT (gpt-image-2).
+
+> 💡 Want Claude Code to also generate images directly? Install codex CLI (`brew install codex` or see the codex docs), run `codex login` once, and the skill auto-detects and enables mode 2.
 
 ## Contributing
 

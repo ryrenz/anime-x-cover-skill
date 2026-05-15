@@ -108,10 +108,48 @@ version: 0.3.6
    - 若风格为 `eva`,必须按 `references/styles/eva.md` 先选择 `palette_mode`,禁止无理由默认橙色。
 7. 撰写英文 image prompt,opener 用风格 reference 推荐用语,绝不使用作品名直字面 cue
 8. 校验:title 100% 等于原文标题;角色字段齐全;无原作 IP 文字;标题块居中且面积 ≥ 70%
-9. 判断运行环境与可用能力:
-   - **Codex + 可用 image generation 工具**:直接调用 image generation 工具出图,不要把 prompt 当最终结果交给用户再手动跑一遍。调用前可短暂说明正在直接生成图片;调用后遵守宿主工具规则,不要再输出 prompt、解释或追问。
-   - **无 image generation 工具 / 用户明确要求只要 prompt**:输出 decisions JSON + 英文 image prompt。
-10. 如果直接出图,按 Image Output Policy 复制到 `~/Downloads/`。完成前必须验证目标 `*-cover.png` 存在。
+9. 判断运行环境与可用能力,按下列优先级选第一个命中的分支(用户明确要求"只要 prompt"时直接跳到 9c):
+   - **9a. 宿主有内置 image generation 工具(典型:Codex)**:直接调用宿主内置工具出图,不要把 prompt 当最终结果交给用户再手动跑一遍。调用前可短暂说明正在直接生成图片;调用后遵守宿主工具规则,不要再输出 prompt、解释或追问。
+   - **9b. 宿主无内置 image generation 工具,但本机 `codex` CLI 可用**(典型:Claude Code 中 `command -v codex` 命中):shell 调 `codex exec` 转手出图,见下方"Codex CLI Bridge"段。**只有 9b 真的失败(codex 退出码非 0、超时、或未生成目标文件)时才降级到 9c**。
+   - **9c. 既无宿主 image_gen,也没有可用的 codex CLI / 用户明确要求只要 prompt**:输出 decisions JSON + 英文 image prompt(走"Output Format"段)。
+10. 如果走了 9a 或 9b,按 Image Output Policy **复制到 `~/Downloads/<basename>-cover.png`**(只复制到这一个位置,不要顺手 +1 复制到任何其它路径,除非用户在本次调用明示要求多个目标)。完成前必须 `ls` 验证目标 `*-cover.png` 存在。
+
+---
+
+## Codex CLI Bridge(9b 的执行细节)
+
+当宿主无内置 image_gen 但 `command -v codex` 命中时,按以下流程转手:
+
+1. **检测**:`command -v codex` 返回路径即视为可用。可选再跑 `codex --version` 拿版本号。
+2. **构造 wrapper 任务**(写入 `/tmp/anime-cover-codex-task.txt` 或类似临时文件):
+   ```
+   Use your built-in image generation tool to render the cover image described below.
+   Save the resulting PNG to exactly ONE path:
+     ~/Downloads/<basename>-cover.png
+   Do not save to any other location (no Desktop, no extra copies, no article directory)
+   unless explicitly listed above. The file must exist on disk before you finish.
+   Do not output the prompt back as text; generate the image.
+   Do not ask follow-up questions; the prompt below is complete.
+
+   === IMAGE PROMPT START ===
+   <步骤 7 撰写出的完整英文 image prompt>
+   === IMAGE PROMPT END ===
+
+   After generating, verify with `ls -la '<target path>'` that the PNG exists.
+   ```
+   `<basename>` 来源:有本地文章路径就用文章 basename,纯粘贴正文就用标题 slug,实在拿不到就 `cover-YYYYMMDD-HHMM`。
+3. **执行**:
+   ```
+   codex exec --sandbox danger-full-access --skip-git-repo-check --ephemeral - < /tmp/anime-cover-codex-task.txt
+   ```
+   - `--sandbox danger-full-access`:`~/Downloads/` 通常在 cwd 之外,需要广权写盘。
+   - `--skip-git-repo-check`:skill 调用可能不在 git 仓库内。
+   - `--ephemeral`:不持久化 Codex session 文件。
+4. **校验**:codex 退出码非 0、stderr 含明显错误、或 `ls "<target>"` 找不到文件 → 视为 9b 失败,降级到 9c(输出 decisions + 英文 prompt 让用户自己粘)。
+5. **不要做的**:
+   - 不要把 prompt body 再额外输出给用户(9b 的最终交付物就是 PNG 本身,prompt 是中间过程)
+   - 不要顺手把 PNG 也复制到文章同目录 / Desktop 等额外位置 —— 默认输出位置永远只有 `~/Downloads/` 一处
+   - 不要在 wrapper 里给 codex 留"多目标兜底"模板,精确写出唯一目标路径
 
 ---
 
