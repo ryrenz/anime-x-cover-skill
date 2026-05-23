@@ -1,15 +1,21 @@
 ---
 name: anime-cover-prompt
-description: Read an article and produce a paste-and-go gpt-image-2 prompt in EVA / Persona 5 / Akira aesthetic. Outputs decision JSON + English image prompt. Use when user wants to generate an article cover prompt with anime / cyberpunk / mecha-terminal / red-black-rebel style.
-version: 0.3.6
+description: Read an article and produce a paste-and-go gpt-image-2 prompt. Two cover families — anime-pop (EVA / Persona 5 / Akira) and mega-chinese-type (giant Chinese perspective typography, esports key visual, editorial sports, movie poster). Outputs decision JSON + English image prompt. Use when user wants to generate an article cover prompt with anime / cyberpunk / mecha-terminal / red-black-rebel style, or with giant-Chinese-typography / esports / sports-poster / cinematic-cover style.
+version: 0.4.0
 ---
 
-# Anime Cover Prompt
+# Anime / Cover Prompt
 
 文章 → 生成封面图或直接可粘贴进 ChatGPT (gpt-image-2) 的封面 prompt。
-风格家族:EVA / Persona 5 / Akira。文字 100% 与原标题一致,角色字段强制出现。
 
-每个风格的具体视觉规范(色彩 / 字体 / 装饰文字 / IP 黑名单 / 字段摆放)在 `references/styles/<style>.md`,**按需加载**,不在本文件常驻。
+**两个封面统一模板（family）**：
+
+| Family | 气质 | Styles |
+|---|---|---|
+| `anime-pop` | 日式动漫流行视觉：机甲控制室、青年反叛、手绘赛璐璐都市 | `eva` / `p5` / `akira` |
+| `mega-chinese-type` | 巨型中文透视标题 + 高冲突撞色 + 电影级构图 + 国际级广告海报 | `esports-key-visual` (后续可扩展 movie-poster / editorial-sports / fashion-campaign) |
+
+每个 family 的通用规范在 `references/families/<family>.md`，每个具体 style 的视觉细节在 `references/styles/<family>/<style>.md`，**按需加载**，不在本文件常驻。
 
 ---
 
@@ -17,18 +23,20 @@ version: 0.3.6
 
 ```
 /anime-cover-prompt path/to/article.md
-/anime-cover-prompt path/to/article.md --style eva|p5|akira --aspect 5:2
+/anime-cover-prompt path/to/article.md --family anime-pop --style eva --aspect 5:2
+/anime-cover-prompt path/to/article.md --family mega-chinese-type --style esports-key-visual
 /anime-cover-prompt path/to/article.md --date 2026.05.03 --vol "Claude Code Vol.3"
 /anime-cover-prompt path/to/article.md --reset      # 清空 config,重新问一次
 /anime-cover-prompt                                  # 不带参数 → 让用户粘贴文章
 ```
 
 参数:
-- `--style` `eva` | `p5` | `akira`(默认 auto,根据文章 mood 判断)
-- `--aspect` `5:2`(Twitter,默认) | `2.35:1`(公众号) | `3:2` | `4:5` | `1:1`
-- `--lang` `zh`(默认) | `en` | `mix`
-- `--handle` / `--vol` / `--no` / `--date`:单次覆盖 config 值
-- `--reset`:清空 `~/.config/anime-cover-prompt/config.yaml` 并重新询问 handle
+- `--family` `anime-pop` | `mega-chinese-type`（默认 auto，根据文章 mood 判断）
+- `--style` 必须是所选 family 下挂的 style 名（不指定走 family 内 auto 路由）
+- `--aspect` `5:2`（Twitter,默认）| `2.35:1`（公众号）| `3:2` | `4:5` | `1:1` | `16:9` | `9:16`
+- `--lang` `zh`（默认）| `en` | `mix`
+- `--handle` / `--vol` / `--no` / `--date`：单次覆盖 config 值
+- `--reset`：清空 `~/.config/anime-cover-prompt/config.yaml` 并重新询问 handle
 
 ---
 
@@ -97,26 +105,29 @@ version: 0.3.6
 
 ## Workflow
 
-被调用时执行如下步骤,**步骤 1-2 内部完成不输出,步骤 3 输出 fields 一行,步骤 4-10 内部完成不输出过程**:
+被调用时执行如下步骤,**步骤 1-2 内部完成不输出,步骤 3 输出 fields 一行,步骤 4-11 内部完成不输出过程**:
 
 1. 加载持久字段(读 config.yaml)
 2. 读文章
 3. 解析 vol/no/date,**输出 fields 一行**
-4. 判断风格模式(若 `style_default: auto` 且 CLI 未指定):见下方 Style Routing
-5. **加载该风格的 reference 文件**:`references/styles/<style>.md`(EVA / P5 / Akira 三选一,**只读所选那一份**)
-6. 应用通用 Design Spec(本文件下方)+ 该风格 reference,生成 decisions
-   - 若风格为 `eva`,必须按 `references/styles/eva.md` 先选择 `palette_mode`,禁止无理由默认橙色。
-7. 撰写英文 image prompt,opener 用风格 reference 推荐用语,绝不使用作品名直字面 cue
-8. 校验:title 100% 等于原文标题;角色字段齐全;无原作 IP 文字;标题块居中且面积 ≥ 70%
-9. 判断运行环境与可用能力,按下列优先级选第一个命中的分支(用户明确要求"只要 prompt"时直接跳到 9c):
-   - **9a. 宿主有内置 image generation 工具(典型:Codex)**:直接调用宿主内置工具出图,不要把 prompt 当最终结果交给用户再手动跑一遍。调用前可短暂说明正在直接生成图片;调用后遵守宿主工具规则,不要再输出 prompt、解释或追问。
-   - **9b. 宿主无内置 image generation 工具,但本机 `codex` CLI 可用**(典型:Claude Code 中 `command -v codex` 命中):shell 调 `codex exec` 转手出图,见下方"Codex CLI Bridge"段。**只有 9b 真的失败(codex 退出码非 0、超时、或未生成目标文件)时才降级到 9c**。
-   - **9c. 既无宿主 image_gen,也没有可用的 codex CLI / 用户明确要求只要 prompt**:输出 decisions JSON + 英文 image prompt(走"Output Format"段)。
-10. 如果走了 9a 或 9b,按 Image Output Policy **复制到 `~/Downloads/<basename>-cover.png`**(只复制到这一个位置,不要顺手 +1 复制到任何其它路径,除非用户在本次调用明示要求多个目标)。完成前必须 `ls` 验证目标 `*-cover.png` 存在。
+4. **判断 family**(若 `--family` 未指定):见下方 Family Routing
+5. **判断 style**(若 `--style` 未指定):在所选 family 内按 Style Routing
+6. **加载 family 文件**:`references/families/<family>.md`(**只读所选那一份**)
+7. **加载 style 文件**:`references/styles/<family>/<style>.md`(**只读所选那一份**)
+8. 应用 family + style 的合并规范,生成 decisions
+   - 若 family 为 `anime-pop` 且 style 为 `eva`,必须按 EVA reference 先选择 `palette_mode`,禁止无理由默认橙色
+   - 若 family 为 `mega-chinese-type`,必须在 decisions 中写出 `palette_mode` 与 `perspective_mode` 两项
+9. 撰写英文 image prompt,opener 用所选 family + style reference 推荐用语,绝不使用作品名 / 联赛名 / 品牌名直字面 cue
+10. 校验:title 100% 等于原文标题;角色字段齐全;无原作 IP 文字;标题块面积满足所选 family 的硬约束(anime-pop ≥ 70%;mega-chinese-type 50%–80%)
+11. 判断运行环境与可用能力,按下列优先级选第一个命中的分支(用户明确要求"只要 prompt"时直接跳到 11c):
+   - **11a. 宿主有内置 image generation 工具(典型:Codex)**:直接调用宿主内置工具出图,不要把 prompt 当最终结果交给用户再手动跑一遍。调用前可短暂说明正在直接生成图片;调用后遵守宿主工具规则,不要再输出 prompt、解释或追问。
+   - **11b. 宿主无内置 image generation 工具,但本机 `codex` CLI 可用**(典型:Claude Code 中 `command -v codex` 命中):shell 调 `codex exec` 转手出图,见下方"Codex CLI Bridge"段。**只有 11b 真的失败(codex 退出码非 0、超时、或未生成目标文件)时才降级到 11c**。
+   - **11c. 既无宿主 image_gen,也没有可用的 codex CLI / 用户明确要求只要 prompt**:输出 decisions JSON + 英文 image prompt(走"Output Format"段)。
+12. 如果走了 11a 或 11b,按 Image Output Policy **复制到 `~/Downloads/<basename>-cover.png`**(只复制到这一个位置,不要顺手 +1 复制到任何其它路径,除非用户在本次调用明示要求多个目标)。完成前必须 `ls` 验证目标 `*-cover.png` 存在。
 
 ---
 
-## Codex CLI Bridge(9b 的执行细节)
+## Codex CLI Bridge(11b 的执行细节)
 
 当宿主无内置 image_gen 但 `command -v codex` 命中时,按以下流程转手:
 
@@ -132,7 +143,7 @@ version: 0.3.6
    Do not ask follow-up questions; the prompt below is complete.
 
    === IMAGE PROMPT START ===
-   <步骤 7 撰写出的完整英文 image prompt>
+   <步骤 9 撰写出的完整英文 image prompt>
    === IMAGE PROMPT END ===
 
    After generating, verify with `ls -la '<target path>'` that the PNG exists.
@@ -145,25 +156,52 @@ version: 0.3.6
    - `--sandbox danger-full-access`:`~/Downloads/` 通常在 cwd 之外,需要广权写盘。
    - `--skip-git-repo-check`:skill 调用可能不在 git 仓库内。
    - `--ephemeral`:不持久化 Codex session 文件。
-4. **校验**:codex 退出码非 0、stderr 含明显错误、或 `ls "<target>"` 找不到文件 → 视为 9b 失败,降级到 9c(输出 decisions + 英文 prompt 让用户自己粘)。
+4. **校验**:codex 退出码非 0、stderr 含明显错误、或 `ls "<target>"` 找不到文件 → 视为 11b 失败,降级到 11c(输出 decisions + 英文 prompt 让用户自己粘)。
 5. **不要做的**:
-   - 不要把 prompt body 再额外输出给用户(9b 的最终交付物就是 PNG 本身,prompt 是中间过程)
+   - 不要把 prompt body 再额外输出给用户(11b 的最终交付物就是 PNG 本身,prompt 是中间过程)
    - 不要顺手把 PNG 也复制到文章同目录 / Desktop 等额外位置 —— 默认输出位置永远只有 `~/Downloads/` 一处
    - 不要在 wrapper 里给 codex 留"多目标兜底"模板,精确写出唯一目标路径
 
 ---
 
-## Style Routing
+## Family Routing
 
-**只是路由,完整风格规范在 reference 文件**。
+**只是路由,完整 family 规范在 family 文件**。
 
-| 文章 mood 关键词 | 风格 | Reference |
+| 文章 mood 关键词 | family | Reference |
 |---|---|---|
-| 冷峻 / 秩序 / 精密 / 技术 / 系统 / 调试 | **eva** | [references/styles/eva.md](references/styles/eva.md) |
-| 反叛 / 觉醒 / 锐利 / 戳穿 / 反共识 / 心理 | **p5** | [references/styles/p5.md](references/styles/p5.md) |
-| 末日 / 危机 / 赛博 / 工业 / 血色 / 都市 | **akira** | [references/styles/akira.md](references/styles/akira.md) |
+| 冷峻 / 秩序 / 精密 / 技术 / 调试 / 反叛 / 觉醒 / 末日 / 赛博 / 都市 | **anime-pop** | [references/families/anime-pop.md](references/families/anime-pop.md) |
+| 热血 / 速度 / 竞技 / 对抗 / 上线 / 突破 / 电影感叙事 / 商业 / 广告大片 | **mega-chinese-type** | [references/families/mega-chinese-type.md](references/families/mega-chinese-type.md) |
 
-每个 reference 文件含:主色 / 字体 / 气质 / 装饰文字原则 / 图像锚点 / 边框倾向 / 角色字段摆放 / 原作 IP 黑名单 / 英文 prompt opener 推荐用语。
+如果文章同时命中两个 family 的关键词，按"画面气质需要"二选一：
+
+- 文章核心是**内部系统、技术过程、个人心理**——选 `anime-pop`
+- 文章核心是**对抗结果、传播爆点、商业宣告、对比冲击**——选 `mega-chinese-type`
+
+family 路由不能跳过：每篇都要在内部判定一次，并且 decisions JSON 顶部必须写出 `family` 与 `family_reason`。
+
+---
+
+## Style Routing(family 内)
+
+### Family `anime-pop`
+
+| 文章 mood 关键词 | style | Reference |
+|---|---|---|
+| 冷峻 / 秩序 / 精密 / 技术 / 系统 / 调试 | `eva` | [references/styles/anime-pop/eva.md](references/styles/anime-pop/eva.md) |
+| 反叛 / 觉醒 / 锐利 / 戳穿 / 反共识 / 心理 | `p5` | [references/styles/anime-pop/p5.md](references/styles/anime-pop/p5.md) |
+| 末日 / 危机 / 赛博 / 工业 / 血色 / 都市 | `akira` | [references/styles/anime-pop/akira.md](references/styles/anime-pop/akira.md) |
+
+### Family `mega-chinese-type`
+
+| 文章 mood 关键词 | style | Reference |
+|---|---|---|
+| 热血 / 速度 / 竞技 / 对抗 / 上线 / 突破 / 数字焦虑 | `esports-key-visual` | [references/styles/mega-chinese-type/esports-key-visual.md](references/styles/mega-chinese-type/esports-key-visual.md) |
+| (后续扩展) | `movie-poster` | — |
+| (后续扩展) | `editorial-sports` | — |
+| (后续扩展) | `fashion-campaign` | — |
+
+每个 style reference 文件含:主色 / 字体 / 气质 / 装饰文字原则 / 图像锚点 / 边框倾向 / 角色字段摆放 / 原作 IP 黑名单 / 英文 prompt opener 推荐用语。
 
 ---
 
@@ -176,11 +214,15 @@ version: 0.3.6
 
 ```json
 {
-  "style": "eva | p5 | akira",
-  "style_reason": "为什么这篇文章适配该风格(1 句)",
-  "palette_mode": "仅 EVA 必填: rei_blue_clinical | unit01_purple_green | unit02_orange_red_alert | white_red_black_command | angelic_anomaly | mari_pink_green_experimental",
-  "palette_reason": "仅 EVA 必填: 为什么该文章适配这个 EVA 子色彩模式",
-  "hero": "A 层巨型大字 (2-6 中文字 / 1-3 英文词)",
+  "family": "anime-pop | mega-chinese-type",
+  "family_reason": "为什么这篇文章适配该 family(1 句)",
+  "style": "<family 内的具体 style 名>",
+  "style_reason": "为什么这篇文章适配该 style(1 句)",
+  "palette_mode": "anime-pop/eva 必填; mega-chinese-type 必填(各 style 自带枚举)",
+  "palette_reason": "为什么该文章适配这个 palette mode",
+  "perspective_mode": "仅 mega-chinese-type 必填: 地面透视字 / 墙面透视字 / 天花板压迫字 / 斜切冲击字 / 纵深隧道字 / 巨型投影字 / 俯视透视字 / 仰视巨物字 / 环绕包围字 / 断裂爆破字 (十选一)",
+  "perspective_reason": "仅 mega-chinese-type 必填: 为什么选这个透视方式",
+  "hero": "A 层巨型大字 (anime-pop 2-6 中文字; mega-chinese-type 2-8 中文字)",
   "title": "B 层完整标题 (与原文 100% 一致)",
   "subtitle": "C 层副标题 (可空)",
   "keywords": ["关键词1", "关键词2", "关键词3"],
@@ -190,7 +232,7 @@ version: 0.3.6
   "decoration_text": [
     {
       "text": "装饰文字 1(含位置/旋转/颜色等视觉指示)",
-      "source": "A. 文章 §X「原文片段」 / B. reference 中性词模板 / C. 编号-对应关系(如 13 章 → CHK 01-13)"
+      "source": "A. 文章 §X「原文片段」 / B. reference 中性词模板 / C. 编号-对应关系"
     }
   ],
   "field_placement": {
@@ -198,7 +240,7 @@ version: 0.3.6
     "vol_no": "...",
     "date": "..."
   },
-  "border": "无 | 蓝图细线框 | 撕裂边 | 红色双线 | ..."
+  "border": "无 | 蓝图细线框 | 撕裂边 | 红色双线 | 顶底警示条 | ..."
 }
 ```
 
@@ -211,121 +253,68 @@ version: 0.3.6
 
 ---
 
-## Universal Design Spec
+## Universal Design Spec(跨 family 通用)
 
-> 通用规范在此。每个风格的差异化规范(色彩 / 字体 / 装饰原则 / IP 黑名单 / 字段摆放 / 边框倾向)
-> 在 `references/styles/<style>.md`,加载所选那一份,**不要同时加载多个**。
+> 跨 family 的真正通用规范在这一节。**每个 family 自己的差异化规范**(三层文字细节、视觉面积约束、透视/调色枚举、装饰原则、IP 黑名单)
+> 在 `references/families/<family>.md` + `references/styles/<family>/<style>.md`,
+> 加载所选那一对,**不要同时加载多个 family / 多个 style**。
 
-### 1. 三层文字系统(必须)
-
-- **A 层 主视觉巨型文字**:从原标题中提炼最有视觉张力的核心词。中文 2-6 字,英文 1-3 词。承担骨架。
-- **B 层 完整主标题**:用户原标题完整保留,中号呈现。
-- **C 层 系统小字**:副标题 / 关键词 / 角色字段(handle/vol/no/date) / 装饰文字。
-
-### 2. 长标题提炼规则
-
-- 短标题:整句作为大字
-- 中等长度:提炼核心词做大字,完整标题缩为 B 层
-- 长标题:严禁整句放大
-- 功能性词(教程/指南/方法论/路线/实战)不做最大字,放 B 或 C 层
-- A 层与原题语义必须一致
-
-### 3. 角色字段(强制)
+### 1. 角色字段(强制)
 
 `handle` / `vol` / `no` / `date` 四项**必须全部出现在画面中**,任一项遗漏即视为错误输出。
-**具体摆放位置见所选风格 reference 文件**。
+**具体摆放位置见所选 style reference 文件**。
 
-### 4. 装饰文字(自动生成 + 强制溯源)
+### 2. 装饰文字溯源(强制)
 
-除角色字段外的所有 ticker / caution / system 文字,按所选风格的"装饰文字原则"生成,并**为每一条装饰填写 source(来源)**写进 decisions JSON。
+除角色字段外的所有 ticker / caution / system 文字,按所选 family + style 的"装饰文字原则"生成,并**为每一条装饰填写 source(来源)**写进 decisions JSON。
 
-**每一条 decoration_text 的 source 必须落在以下三类之一**:
+每一条 decoration_text 的 source 必须落在以下三类之一：
 
-- **A. 文章导出**:从文章关键词、命题、章节数、术语、引文里提炼 → source 写出对应原文位置或词
-- **B. 中性系统词模板**:风格 reference 中明列的中性词(如 EVA `STATUS: ACTIVE` / Akira `SECTOR-7` / P5 `BREAK`) → source 写"reference 中性词模板"
-- **C. 数据/编号/坐标/倒计时**:必须能与文章内容形成对应(如 13 章 → `CHK 01-13` / `T-013`,5 月 9 日 → `IDX-0509`) → source 写出对应关系
+- **A. 文章导出**:从文章关键词、命题、章节数、术语、引文里提炼
+- **B. 中性系统词模板**:family / style reference 中明列的中性词
+- **C. 数据/编号/坐标/倒计时**:必须能与文章内容形成对应
 
-**严禁(都是模板惯性翻车点)**:
+**严禁**:
 
-- ❌ "看起来够 EVA / 够 Akira"凭空填的字符串(典型:`T-005` 与文章无关、`危険` 与 Akira 海报视觉绑定过紧、随机 `REF-9821` 没对应任何东西)
-- ❌ 自己也写不出 source 的装饰 —— 写不出来就不要放
-- ❌ 任何 decoration 以"大尺寸 / 中央 / 全屏 / huge / large"出现 —— **巨型字位永远只属于 hero 一个**(详见 §7.5)
-- ❌ 数字/编号写得"像那么回事"但其实没对应文章(`PTN-13` 必须明示与 13 章对应,否则换掉)
+- ❌ "看起来够风格"凭空填的字符串
+- ❌ 自己也写不出 source 的装饰
+- ❌ 任何 decoration 以"大尺寸 / 中央 / 全屏 / huge / large"出现 —— **巨型字位永远只属于 hero 一个**
+- ❌ 数字/编号写得"像那么回事"但其实没对应文章
 
-必须看起来像版式系统的一部分,不像后期贴上。**具体每家的原则与 IP 黑名单见所选风格 reference 文件**。
+### 3. 边框(跨 family 通用)
 
-### 5. 边框
-
-不强制有无;**具体倾向见所选风格 reference 文件**。
+不强制有无;**具体倾向见所选 style reference 文件**。
 若加,必须服务于版式秩序,不能装饰化。
 
-### 6. 原作 IP 文字硬约束(关键)
+### 4. 原作 IP / 商业品牌文字硬约束(跨 family 通用)
 
-风格(色彩 / 笔触 / 构图 / 角色 / 载具 / 场景)可以参考三部作品,**文字必须避开**。
-理由:用户的标题才是画面焦点,任何原作 IP 文字都会抢戏、稀释主题。
+风格(色彩 / 笔触 / 构图 / 角色 / 载具 / 场景)可以参考三部作品或现实场景,**文字必须避开**:
 
-**通用原则**:
+- 原作 IP 名 / logo / 角色名 / 专有词(anime-pop family 重点防)
+- 现实电竞联赛 / 俱乐部 / 选手脸部肖像 / 运动品牌名(mega-chinese-type family 重点防)
+- 通用未授权品牌(Canon / Honda / OpenAI / Anthropic / Adidas / Nike 等)
 
-- 视觉意象保留(机甲、机车、面具、城市) ✅
-- 元素上贴的原作 logo / 名字 / 专有词 ❌
-- 英文 prompt 撰写时同样回避作品名(`EVA NERV terminal aesthetic` ❌ / `Akira poster style` ❌ / `Persona 5 splash` ❌),改用风格 reference 推荐的通用描述
+**英文 prompt 撰写时同样回避作品名 / 品牌名 / 联赛名,改用 family + style reference 推荐的通用描述**。
 
-**具体每家的禁止字样清单与推荐替代语,见所选风格 reference 文件**。
+### 5. 图文结构关系(跨 family 通用)
 
-### 7. 图文结构关系
+图像不能独立漂浮,必须和文字发生**结构关系**:
 
-图像不能独立漂浮,必须和文字发生**结构关系**:嵌入字内 / 从字里长出 / 穿过字形 / 作为字的地面或阴影 / 微缩人物站在巨字前形成尺度反差 / 文字像建筑或屏幕。
+- anime-pop family:嵌入字内 / 从字里长出 / 穿过字形 / 作为字的地面或阴影 / 微缩人物站在巨字前形成尺度反差 / 文字像建筑或屏幕
+- mega-chinese-type family:文字作为道路 / 墙面 / 隧道 / 天花板 / 投影 / 包围结构本身;人物站在文字上、跑过文字、被文字压迫、从文字里冲出
 
-### 7.5 视觉面积分配(硬约束 ⚠️)
-
-**标题永远是画面焦点,任何隐喻图像都不得抢占标题应有的视觉面积**。
-违反即视为输出失败。
-
-**强制比例**:
-
-| 元素 | 全画面占比 |
-|---|---|
-| 标题块(A 层 hero + B 层完整标题 + 副标题) | **≥ 70%**,推荐 70-78%,必须居中 |
-| Hero 字宽度 | **≥ 50% 画面宽度**,推荐 55-65% |
-| 背景 / 隐喻图像 | 15-25%(必须**单一氛围或单一锚点**,不得抢标题) |
-| 装饰文字 + 角色字段 | 5-10% |
-
-**严禁(全部都是常见 gpt-image 翻车点)**:
-
-- ❌ **多个小图标/剪影并列堆成"内容墙"**(几十个 pitch deck、demo 屏、icon 堆叠)—— 视觉上就是垃圾
-- ❌ **左右双区对称构图**(如"左半 metaphor / 右半 title")—— 标题永远是主,metaphor 是背景或单点
-- ❌ Hero 字小于全画面 35% 宽度
-- ❌ 标题块被挤到画面单侧的小子区域
-- ❌ 标题块不居中,或标题块低于全画面 70%
-- ❌ **任何装饰元素(印章 / 徽章 / 大数字 / 倒计时 / 副标语)的视觉权重 ≥ hero** —— hero 必须始终是画面里"最响"的一处。若有印章 / 徽章式装饰(如 P5 大红印章),其尺寸必须**明显小于 hero 一档以上**,英文 prompt 里必须显式写"smaller than hero" 或 "subordinate to hero in size"
-- ❌ 在 hero 之外再生成第二个"巨型"字位(典型翻车:EVA HUD 中央放一个 huge 倒计时数字 / Akira 街景里又一块大 LED 字幕与 hero 抢焦点)
-
-**正确做法**:
-
-- 隐喻应该是**一个主要图像锚点 + 一片统一氛围背景**,而不是多个并列元素拼起来
-- 标题块必须居中,用背景结构托住标题,而不是让标题绕开背景
-- 例:✅ "撕口背景上一个独行者剪影 + 红色半色调氛围"(单一锚点 + 单一氛围)
-- 反例:❌ "左侧一面 startup 表演物的墙 + 右侧露出真实"(多元素堆 + 双区对称)
-
-**英文 prompt 撰写时必须显式声明**:
-
-- `title block is centered and occupies at least 70% of the frame area`
-- `hero text occupies at least 50% of frame width and is the dominant visual element`
-- `background metaphor is a single atmospheric layer, NOT multiple competing icons or a grid of small elements`
-- `do not divide the canvas into symmetric halves; title block dominates the central / focal area`
-
-### 8. 严格禁止
+### 6. 严格禁止(跨 family 通用)
 
 - 长标题整句粗暴放大
 - 只有大字没有图像隐喻 / 图文割裂 / 图像只是装饰
 - 普通商业插画感 / 电商封面感 / 信息图模板感
-- 廉价科技蓝紫霓虹(除非该色明确属于所选风格)
+- 廉价科技蓝紫霓虹(除非该色明确属于所选 style)
 - 错别字 / 漏字 / 字体严重变形
 - 角色字段任一遗漏
-- 风格混搭(EVA 模式不能出现 P5 半色调网点)
-- 未授权品牌 logo(Canon / Honda / OpenAI / Anthropic 等)
-- **原作 IP 专有文字作为装饰出现**(详见所选风格 reference)
+- 风格混搭(family 不能跨,style 也不能跨)
+- 未授权品牌 logo
 - 大段解释文字、花哨边框、过度 3D
+- 多个小图标 / 双区对称构图
 
 ---
 
@@ -333,16 +322,16 @@ version: 0.3.6
 
 最终输出的英文 prompt 必须:
 
-1. **首句**:声明 aspect ratio + 风格 opener,**用所选风格 reference 推荐的通用描述,不写作品名**
-2. **MANDATORY LAYOUT**:显式列出画面只允许的视觉层(参考 §7.5),禁止图标墙 / 双区对称
-3. **核心视觉**:描述 metaphor_anchor 与图文结构关系
+1. **首句**:声明 aspect ratio + family + style opener,**用所选 family + style reference 推荐的通用描述,不写作品名 / 品牌名 / 联赛名**
+2. **MANDATORY LAYOUT**:显式列出画面只允许的视觉层,禁止图标墙 / 双区对称;写出所选 family 的标题面积约束(anime-pop ≥ 70%;mega-chinese-type 50%–80%)
+3. **核心视觉**:描述 metaphor_anchor 与图文结构关系;若 family 为 mega-chinese-type 必须显式声明 perspective_mode 与文字-人物关系
 4. **A/B/C 文字**:明确指出三层文字内容、字号层级、字体倾向
 5. **角色字段**:逐一列出 handle/vol/no/date 的具体内容与位置
 6. **装饰文字**:列出 decoration_text 与摆放位置
 7. **色彩**:明确 hex(让模型不漂)
 8. **边框**:有则描述,无则不提
-9. **质感**:halftone / film grain / blueprint hairlines 等
-10. **STRICTLY FORBIDDEN 段**:列出所选风格的 IP 黑名单字样 + "no icon walls / no symmetric halves"
+9. **质感**:halftone / film grain / blueprint hairlines / cel shadow / poster grain 等(按所选 family + style)
+10. **STRICTLY FORBIDDEN 段**:列出所选 family + style 的 IP/品牌黑名单字样 + "no icon walls / no symmetric halves"
 11. **尾句**:`text must be rendered exactly as specified, no spelling errors, no extra characters`
 
 中文标题、角色字段、汉字装饰文字在英文 prompt 中**保留原中文**,加引号包裹。
@@ -351,10 +340,10 @@ version: 0.3.6
 
 ## Style Anchor(可选,推荐)
 
-如果用户在 `~/.config/anime-cover-prompt/anchors/` 放了 `eva.png` / `p5.png` / `akira.png`,
+如果用户在 `~/.config/anime-cover-prompt/anchors/` 放了 `eva.png` / `p5.png` / `akira.png` / `esports-key-visual.png` 等,
 在最终输出的 prompt 末尾追加一行提示用户:
 
-> 💡 出图时建议把 `~/.config/anime-cover-prompt/anchors/{style}.png` 作为 reference image 一并上传给 ChatGPT,可显著提升风格一致性。
+> 💡 出图时建议把 `~/.config/anime-cover-prompt/anchors/<family>/<style>.png` 作为 reference image 一并上传给 ChatGPT,可显著提升风格一致性。
 
 ---
 
@@ -362,27 +351,42 @@ version: 0.3.6
 
 输出前自查:
 
+- [ ] `decisions.family` 已写出且符合 Family Routing 表
+- [ ] `decisions.style` 落在所选 family 下挂的 style 列表内（不允许跨 family）
 - [ ] `decisions.title` 与原文标题逐字相同
 - [ ] `decisions.hero` 在原标题中可找到来源,语义未偏离
 - [ ] handle / vol / no / date 四项齐全
 - [ ] `metaphor_anchor_evidence` 真实引用了原文
-- [ ] 风格未混搭(只读了一份 style reference)
-- [ ] 若 `style=eva`,已填写 `palette_mode` / `palette_reason`,且没有无理由默认橙色；`unit02_orange_red_alert` 仅用于警报、切断、事故、裁撤、倒计时、攻击性行动等语义
-- [ ] **`decoration_text` 中无任何原作 IP 专有名词**(按所选风格 reference 的黑名单核对)
-- [ ] **英文 prompt 中也未直接写 NERV / Akira / Persona 等字面词**(用 reference 推荐通用描述)
-- [ ] 英文 prompt 末尾有"text must be rendered exactly as specified"
-- [ ] **标题块居中且占画面 ≥ 70%**(hero ≥ 50% 宽度),英文 prompt 已显式写出此面积约束(见 §7.5)
+- [ ] **只读了一份 family + 一份 style** reference,未混搭
+- [ ] 若 family=anime-pop 且 style=eva,已填写 `palette_mode` / `palette_reason`,且没有无理由默认橙色
+- [ ] 若 family=mega-chinese-type,已填写 `palette_mode` 与 `perspective_mode`（透视方式从 family 10 种里挑且在 style 允许范围内）
+- [ ] **`decoration_text` 中无任何原作 IP / 现实联赛 / 现实俱乐部 / 现实运动品牌专有名词**
+- [ ] **英文 prompt 中也未直接写作品名 / 品牌名 / 联赛名**（用 reference 推荐通用描述）
+- [ ] 英文 prompt 末尾有 "text must be rendered exactly as specified"
+- [ ] **标题块满足所选 family 的面积约束**（anime-pop ≥ 70%;mega-chinese-type 50–80%），英文 prompt 已显式写出
 - [ ] 隐喻是**单一锚点 + 单一氛围**,不是多元素堆叠;不是左右对称双区构图
-- [ ] **每条 decoration_text 都填写了 source**,且 source 落在 A/B/C 三类之一(文章导出 / reference 中性词 / 与文章对应的编号)。**写不出 source 的条目已删除**
-- [ ] decoration 中**没有凭风格惯性塞入的元素**(逐条检查:典型翻车 `T-005` 类无源倒计时、`危険` 类 IP 联想词、随机 `REF-XXXX` 无对应关系)
-- [ ] hero 是画面里**唯一**的"巨型"字位;任何印章 / 徽章 / 大字装饰都明确小于 hero,英文 prompt 已写出 `smaller than hero` 或 `subordinate to hero in size`
+- [ ] **每条 decoration_text 都填了 source**
+- [ ] hero 是画面里**唯一**的"巨型"字位
 
 ---
 
 ## References
 
-- [styles/eva.md](references/styles/eva.md) — EVA 风格完整规范(色彩 / 字体 / IP 黑名单 / 字段摆放 / opener 用语)
-- [styles/p5.md](references/styles/p5.md) — Persona 5 风格完整规范
-- [styles/akira.md](references/styles/akira.md) — Akira 风格完整规范
+### Families（每篇必读其一）
 
-加载时机:Workflow 步骤 5 决定风格后,**只读对应那一份**,不要同时加载多个。
+- [families/anime-pop.md](references/families/anime-pop.md) — 日式动漫流行视觉系（三层文字、面积约束、装饰溯源）
+- [families/mega-chinese-type.md](references/families/mega-chinese-type.md) — 巨型中文透视标题视觉系（透视 10 种、配色撞色原则、字体倾向）
+
+### Styles
+
+#### Family `anime-pop`
+
+- [styles/anime-pop/eva.md](references/styles/anime-pop/eva.md) — EVA 风格完整规范
+- [styles/anime-pop/p5.md](references/styles/anime-pop/p5.md) — Persona 5 风格完整规范
+- [styles/anime-pop/akira.md](references/styles/anime-pop/akira.md) — Akira 风格完整规范
+
+#### Family `mega-chinese-type`
+
+- [styles/mega-chinese-type/esports-key-visual.md](references/styles/mega-chinese-type/esports-key-visual.md) — 电竞赛事主视觉风格完整规范
+
+加载时机：Workflow 步骤 6-7 决定 family + style 后，**只读对应那对**，不要同时加载多个。
